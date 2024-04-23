@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="start_button">Start</string>
+    <string name="activity_text">Aktivität auswählen:</string>
+    <string name="pause_button">Pause</string>
+    <string name="end_button">Ende</string>
+    <string name="status_text">Zeit: Acker mit Aktivität betreten</string>
+    <string-array name="activity_array">
+        <item>Pflügen</item>
+        <item>Ausäen</item>
+        <item>Ernten</item>
+        <item>Gießen</item>
+    </string-array>
+</resources>
