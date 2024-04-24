@@ -9,6 +9,25 @@ app.get("/", (req, res) => {
     res.send("Hello dear Farmer. You are doing a great job. The API is working for you :)");
 });
 
+app.post("/api/checkPos", async (req, res) => {
+    const lat = req.body.latitude;
+    const lon = req.body.longitude;
+    const timestamp = req.body.timestamp;
+    const activity = req.body.activity;
+
+    console.log(lat + ", " + lon + ", " + timestamp + ", " + activity);
+
+    try {
+        //const result = await db(receivedString);
+        res.json({
+            fieldIndex: 73
+        });
+    } catch (error) {
+        // lol
+    }
+
+});
+
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
