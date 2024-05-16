@@ -1,6 +1,7 @@
 package com.htwpeeps.tori;
 
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -11,25 +12,41 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class ApiCall extends AsyncTask<Void, Void, Integer> {
+public class ApiCall {
 
     private static final String apiUrl = "http://192.168.0.104:3000/api/checkPos";
 
-    private int latitude;
-    private int longitude;
-    private int timestamp;
-    private String activity;
+    private final int latitude;
+    private final int longitude;
+    private final int timestamp;
+    private final String activity;
 
-    public ApiCall(int latitude, int longitude, int timestamp, String activity) {
+    private final ApiCallback callBack;
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    public ApiCall(int latitude, int longitude, int timestamp, String activity, ApiCallback callback) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.timestamp = timestamp;
         this.activity = activity;
+
+        this.callBack = callback;
     }
 
-    @Override
-    protected Integer doInBackground(Void... voids) {
+    public void execute() {
+        executorService.execute(() -> {
+            Integer result = doInBackground();
+            handler.post(() -> {
+                callBack.onResult(result);
+            });
+        });
+    }
+
+    protected Integer doInBackground() {
         HttpURLConnection connection = establishConnection(apiUrl);
         if (connection == null) {
             return null;
@@ -86,6 +103,8 @@ public class ApiCall extends AsyncTask<Void, Void, Integer> {
 
             // Antwort von der API empfangen
             int responseCode = connection.getResponseCode();
+            System.out.println(responseCode);
+
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
             String inputLine;
             StringBuffer response = new StringBuffer();
@@ -100,5 +119,9 @@ public class ApiCall extends AsyncTask<Void, Void, Integer> {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public interface ApiCallback {
+        void onResult(Integer fieldIndex);
     }
 }
