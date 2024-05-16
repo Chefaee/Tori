@@ -35,3 +35,7 @@ output.json
 #NDK
 obj/
 .externalNativeBuild
+
+# Backend Stuff
+api_server/node_modules
+api_server/Test.http
