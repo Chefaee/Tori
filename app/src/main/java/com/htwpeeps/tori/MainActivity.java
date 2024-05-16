@@ -12,15 +12,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         ApiCall apiCall = new ApiCall(1, 2, 3, "plow", result -> {
-            // Hier könnt ihr Mädels dann mit dem AckerIndex machen was ihr wollt :)
+            // Here you girls can do whatever frontend-stuff you want with fieldIndex, for example:
             if (result.fieldIndex != null) {
                 System.out.println(result.fieldIndex + ", " + result.responseCode);
             } else if (result.responseCode == null ) {
-                System.out.println("Es kann keine Netzwekverbindung zum Server aufgebaut werden :(");
+                System.out.println("Cant establish network connection to server :(");
             } else {
-                System.out.println("Es gibt Probleme mit dem Server. Http-Response Code " + result.responseCode);
+                System.out.println("There are problems with the server." +
+                        "Http-Response Code " + result.responseCode);
             }
-
         });
         apiCall.execute();
 

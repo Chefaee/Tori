@@ -41,27 +41,24 @@ public class ApiCall {
 
     public void execute() {
         executorService.execute(() -> {
-            //Integer result = doInBackground();
             ResponseObject result = doInBackground();
-            handler.post(() -> {
-                callBack.onResult(result);
-            });
+            handler.post(() -> callBack.onResult(result));
         });
     }
 
     protected ResponseObject doInBackground() {
         if (!isApiReachable()) {
-            // Api ist nicht erreichbar
+            // API is not reachable
             return new ResponseObject(null, null);
         }
 
-        HttpURLConnection connection = establishConnection(apiUrl);
+        HttpURLConnection connection = establishConnection();
         if (connection == null) {
-            // Sollte eigentlich nicht passieren
+            // tbh this shouldn't happen
             return new ResponseObject(null, null);
         }
 
-        // JSON-Daten erstellen
+        // Create JSON Data Object, which we send later
         JSONObject jsonRequest = new JSONObject();
         try {
             jsonRequest.put("latitude", latitude);
@@ -87,32 +84,32 @@ public class ApiCall {
         return new ResponseObject(fieldIndex, response.second);
     }
 
-    private static HttpURLConnection establishConnection(String apiUrl) {
+    private static HttpURLConnection establishConnection() {
         try {
-            // Verbindung zur API herstellen
-            URL url = new URL(apiUrl);
+            // Create Connection to API
+            URL url = new URL(ApiCall.apiUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-            // Verbindungseinstellungen konfigurieren
+            // Configure Connection Settings
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setDoOutput(true);
             return connection;
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return null;
         }
     }
 
     private static Pair<JSONObject, Integer> performApiCall(HttpURLConnection connection, JSONObject jsonRequest) {
         try {
-            // JSON-Daten senden
+            // send JSON Object
             DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
             outputStream.writeBytes(jsonRequest.toString());
             outputStream.flush();
             outputStream.close();
 
-            // Antwort von der API empfangen
+            // receive answer from server
             int responseCode = connection.getResponseCode();
 
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -123,10 +120,9 @@ public class ApiCall {
             }
             in.close();
 
-            // Antwort verarbeiten (als JSON)
             return new Pair<>(new JSONObject(response.toString()), responseCode);
         } catch (IOException | JSONException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
             return null;
         }
     }
@@ -139,10 +135,10 @@ public class ApiCall {
         try {
             URL url = new URL(apiUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("HEAD"); // Verwendung von HEAD-Methode, um nur Header zu erhalten
+            connection.setRequestMethod("HEAD"); // only requesting header for testing
             return true;
         } catch (IOException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
             return false;
         }
     }
