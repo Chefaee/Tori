@@ -1,19 +1,11 @@
 package com.htwpeeps.tori;
 
-public class ReponseObject {
-    private int fieldIndex;
-    private int responseCode;
+public class ResponseObject {
+    public Integer fieldIndex;
+    public Integer responseCode;
 
-    public ReponseObject(int fieldIndex, int responseCode) {
+    public ResponseObject(Integer fieldIndex, Integer responseCode) {
         this.fieldIndex = fieldIndex;
         this.responseCode = responseCode;
-    }
-
-    public int getFieldIndex() {
-        return fieldIndex;
-    }
-
-    public void setFieldIndex(int fieldIndex) {
-        this.fieldIndex = fieldIndex;
     }
 }

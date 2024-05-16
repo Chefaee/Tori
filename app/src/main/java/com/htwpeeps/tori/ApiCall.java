@@ -2,6 +2,7 @@ package com.htwpeeps.tori;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Pair;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -37,19 +38,27 @@ public class ApiCall {
         this.callBack = callback;
     }
 
+
     public void execute() {
         executorService.execute(() -> {
-            Integer result = doInBackground();
+            //Integer result = doInBackground();
+            ResponseObject result = doInBackground();
             handler.post(() -> {
                 callBack.onResult(result);
             });
         });
     }
 
-    protected Integer doInBackground() {
+    protected ResponseObject doInBackground() {
+        if (!isApiReachable()) {
+            // Api ist nicht erreichbar
+            return new ResponseObject(null, null);
+        }
+
         HttpURLConnection connection = establishConnection(apiUrl);
         if (connection == null) {
-            return null;
+            // Sollte eigentlich nicht passieren
+            return new ResponseObject(null, null);
         }
 
         // JSON-Daten erstellen
@@ -63,17 +72,19 @@ public class ApiCall {
             throw new RuntimeException(e);
         }
 
-        JSONObject response = performApiCall(connection, jsonRequest);
+        Pair<JSONObject, Integer> response = performApiCall(connection, jsonRequest);
+        assert response != null;
+        JSONObject responseObject = response.first;
 
         int fieldIndex;
 
         try {
-            fieldIndex = response.getInt("fieldIndex");
+            fieldIndex = responseObject.getInt("fieldIndex");
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
 
-        return fieldIndex;
+        return new ResponseObject(fieldIndex, response.second);
     }
 
     private static HttpURLConnection establishConnection(String apiUrl) {
@@ -93,7 +104,7 @@ public class ApiCall {
         }
     }
 
-    private static JSONObject performApiCall(HttpURLConnection connection, JSONObject jsonRequest) {
+    private static Pair<JSONObject, Integer> performApiCall(HttpURLConnection connection, JSONObject jsonRequest) {
         try {
             // JSON-Daten senden
             DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
@@ -103,18 +114,17 @@ public class ApiCall {
 
             // Antwort von der API empfangen
             int responseCode = connection.getResponseCode();
-            System.out.println(responseCode);
 
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
             String inputLine;
-            StringBuffer response = new StringBuffer();
+            StringBuilder response = new StringBuilder();
             while ((inputLine = in.readLine()) != null) {
                 response.append(inputLine);
             }
             in.close();
 
             // Antwort verarbeiten (als JSON)
-            return new JSONObject(response.toString());
+            return new Pair<>(new JSONObject(response.toString()), responseCode);
         } catch (IOException | JSONException e) {
             e.printStackTrace();
             return null;
@@ -122,6 +132,19 @@ public class ApiCall {
     }
 
     public interface ApiCallback {
-        void onResult(Integer fieldIndex);
+        void onResult(ResponseObject result);
+    }
+
+    private boolean isApiReachable() {
+        try {
+            URL url = new URL(apiUrl);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("HEAD"); // Verwendung von HEAD-Methode, um nur Header zu erhalten
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }
+
