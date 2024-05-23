@@ -3,6 +3,7 @@
     <string name="start_button">Start</string>
     <string name="activity_text">Select activity:</string>
     <string name="pause_button">Pause</string>
+    <string name="cont_button">Resume</string>
     <string name="end_button">End</string>
     <string name="status_text">Time: Entered filed with activity</string>
     <string-array name="activity_array">
@@ -11,4 +12,5 @@
         <item>Harvest</item>
         <item>Watering</item>
     </string-array>
+    <string name="pause_status">Paused</string>
 </resources>
