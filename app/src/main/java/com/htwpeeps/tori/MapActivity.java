@@ -6,6 +6,10 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -17,6 +21,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.res.ResourcesCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -32,6 +37,7 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.CustomZoomButtonsController;
 import org.osmdroid.views.MapController;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
@@ -49,6 +55,7 @@ public class MapActivity extends AppCompatActivity {
     private MapView map;
     private IMapController mapController;
     private MyLocationNewOverlay mLocationOverlay;
+    private Polyline polylinePath;
     private static final int PERMISSION_REQUEST_CODE = 1;
 
     //API from Google for location
@@ -81,6 +88,7 @@ public class MapActivity extends AppCompatActivity {
     private String activity = "plowing";
 
 
+    //todo check and fix possible problems when exiting and entering the map again
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,6 +109,7 @@ public class MapActivity extends AppCompatActivity {
             if (!trackingIsPaused){
                 trackingIsPaused = true;
                 status.setText(getString(R.string.pause_status));
+                //TODO check why interval is not updateing
                 locationRequest.setInterval(1000 * LOCATION_UPDATE_PAUSED_INTERVAL);
                 pauseButton.setText(getString(R.string.cont_button));
             }
@@ -117,19 +126,19 @@ public class MapActivity extends AppCompatActivity {
 
 
         initializeMap();
-        initializeLastPointList();
         locationCallBack = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 super.onLocationResult(locationResult);
 
                 UpdatePointValues(locationResult.getLastLocation());
-                updateMap(mapController);
+                updateMap();
+                drawPathLine();
                 sendApiCall();
             }
         };
 
-        updateGPS();
+        updateFirstGPS();
         tracking();
     }
 
@@ -160,24 +169,44 @@ public class MapActivity extends AppCompatActivity {
         mapController.animateTo(startPoint);
 
         //shows the current location on the map
-        //TODO style to a point not a person
         this.mLocationOverlay = new MyLocationNewOverlay(new GpsMyLocationProvider(ctx), map);
+
+        // overwrites the standard icons with a blue point
+        Drawable currentDraw = ResourcesCompat.getDrawable(getResources(), R.mipmap.map_point_marker_smaller, null);
+        Bitmap currentIcon;
+        if (currentDraw != null) {
+            currentIcon = ((BitmapDrawable) currentDraw).getBitmap();
+            this.mLocationOverlay.setPersonIcon(currentIcon);
+            this.mLocationOverlay.setPersonAnchor(0.5f,0.5f);
+            this.mLocationOverlay.setDirectionIcon(currentIcon);
+            this.mLocationOverlay.setDirectionAnchor(0.5f,0.5f);
+        }
+
         this.mLocationOverlay.enableMyLocation();
         this.mLocationOverlay.setDrawAccuracyEnabled(true);
         map.getOverlays().add(this.mLocationOverlay);
+
+        // adds the layer needed to draw the last 10 points as a line
+        polylinePath = new Polyline();
+        polylinePath.setColor(Color.parseColor("#5ce1e6"));
+        polylinePath.setWidth(4.5f);
+        map.getOverlays().add(polylinePath);
+
     }
 
-    private void initializeLastPointList() {
-        last10Points.add(0, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(1, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(2, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(3, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(4, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(5, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(6, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(7, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(8, new GeoPoint(51.051873, 13.741522));
-        last10Points.add(9, new GeoPoint(51.051873, 13.741522));
+    private void initializeLastPointList(Location location) {
+        lastKnownPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
+
+        last10Points.add(0, lastKnownPoint);
+        last10Points.add(1, lastKnownPoint);
+        last10Points.add(2, lastKnownPoint);
+        last10Points.add(3, lastKnownPoint);
+        last10Points.add(4, lastKnownPoint);
+        last10Points.add(5, lastKnownPoint);
+        last10Points.add(6, lastKnownPoint);
+        last10Points.add(7, lastKnownPoint);
+        last10Points.add(8, lastKnownPoint);
+        last10Points.add(9, lastKnownPoint);
     }
 
     private void updateGPS() {
@@ -195,20 +224,46 @@ public class MapActivity extends AppCompatActivity {
 
         fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
             UpdatePointValues(location);
-            updateMap(mapController);
+            updateMap();
+            drawPathLine();
             sendApiCall();
         });
 
     }
 
-    private void updateMap(IMapController mapController) {
+    private void updateFirstGPS() {
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MapActivity.this);
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            String[] permissions = {Manifest.permission.INTERNET, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
+            requestPermissions(permissions, PERMISSION_REQUEST_CODE);
+        }
+
+
+        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
+            initializeLastPointList(location);
+            updateMap();
+            drawPathLine();
+            sendApiCall();
+        });
+
+    }
+
+    private void updateMap() {
         mapController.setCenter(lastKnownPoint);
         //this moves the map to actually center the start point
         mapController.animateTo(lastKnownPoint);
     }
 
+    private void drawPathLine() {
+        polylinePath.setPoints(last10Points);
+    }
+
     private void UpdatePointValues(Location location) {
-        System.out.println(new Date());
         lastKnownPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
         last10Points.remove(0);
         last10Points.add(9, lastKnownPoint);
