@@ -20,16 +20,16 @@ public class ApiCall {
 
     private static final String apiUrl = "http://192.168.0.104:3000/api/checkPos";
 
-    private final int latitude;
-    private final int longitude;
-    private final int timestamp;
+    private final double latitude;
+    private final double longitude;
+    private final long timestamp;
     private final String activity;
 
     private final ApiCallback callBack;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    public ApiCall(int latitude, int longitude, int timestamp, String activity, ApiCallback callback) {
+    public ApiCall(double latitude, double longitude, long timestamp, String activity, ApiCallback callback) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.timestamp = timestamp;
@@ -141,7 +141,8 @@ public class ApiCall {
 
             // Try to get the response Code. This will break, if there is no connection.
             int responseCode = connection.getResponseCode();
-            return (responseCode >= 200 && responseCode < 400);
+            //return (responseCode >= 200 && responseCode < 400);
+            return true;
         } catch (IOException e) {
             // e.printStackTrace();
             return false;
