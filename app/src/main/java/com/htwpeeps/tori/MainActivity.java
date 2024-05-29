@@ -20,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Button startButton = (Button) findViewById(R.id.start_button);
+        //todo give dropdown value to map for api
         startButton.setOnClickListener(v -> startActivity(new Intent(this, MapActivity.class)));
 
 
