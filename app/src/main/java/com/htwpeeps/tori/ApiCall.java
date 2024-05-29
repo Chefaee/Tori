@@ -52,8 +52,6 @@ public class ApiCall {
             return new ResponseObject(null, null);
         }
 
-        System.out.println("is Reachable");
-
         HttpURLConnection connection = establishConnection();
         if (connection == null) {
             // tbh this shouldn't happen
@@ -141,8 +139,7 @@ public class ApiCall {
 
             // Try to get the response Code. This will break, if there is no connection.
             int responseCode = connection.getResponseCode();
-            //return (responseCode >= 200 && responseCode < 400);
-            return true;
+            return (responseCode >= 200 && responseCode < 400);
         } catch (IOException e) {
             // e.printStackTrace();
             return false;

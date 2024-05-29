@@ -28,6 +28,11 @@ app.post("/api/checkPos", async (req, res) => {
 
 });
 
+app.head("/api/checkPos", (req, res) => {
+    res.sendStatus(200); // For Testing if Api ifs available
+});
+
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
+
