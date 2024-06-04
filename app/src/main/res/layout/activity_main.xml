@@ -33,10 +33,25 @@
         android:layout_height="36dp"
         android:layout_marginBottom="4dp"
         android:text="@string/activity_text"
-        android:textSize="20sp"
+        android:textSize="26sp"
         app:layout_constraintBottom_toTopOf="@+id/activity_dropdown"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.166"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/information"
+        android:layout_width="339dp"
+        android:layout_height="130dp"
+        android:lineSpacingExtra="8sp"
+        android:text="@string/tracking_information"
+        android:textAlignment="textStart"
+        android:textSize="20sp"
+        android:textColor="?colorTertiary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.816" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

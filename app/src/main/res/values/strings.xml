@@ -13,4 +13,5 @@
         <item>Watering</item>
     </string-array>
     <string name="pause_status">Paused</string>
+    <string name="tracking_information">This app continuously tracks your position. For further processing this data is send to a server.</string>
 </resources>
