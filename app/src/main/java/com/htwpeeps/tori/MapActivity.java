@@ -89,8 +89,7 @@ public class MapActivity extends AppCompatActivity {
     boolean changedIsInField = false;
     boolean movedWhilePaused = false;
 
-    //todo get this from main
-    private String activity = "plowing";
+    private String activity = "";
 
 
     //todo check and fix possible problems when exiting and entering the map again
@@ -108,7 +107,7 @@ public class MapActivity extends AppCompatActivity {
 
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
-            System.out.println(extras.getString("activity"));
+            activity = extras.getString("activity");
         }
 
         locationRequest =
