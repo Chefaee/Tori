@@ -13,4 +13,6 @@
         <item>Gießen</item>
     </string-array>
     <string name="pause_status">Pausiert</string>
+    <string name="tracking_information">Die App überwacht kontinuierlich die aktuellen Positionsdaten. Für die Weitervarbeitung werden diese an einen Server gesendet.</string>
+
 </resources>
