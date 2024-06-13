@@ -38,26 +38,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             intent.putExtra("activity", activeDropDownString);
             startActivity(intent);
         });
-
-        ApiCall apiCall = new ApiCall(
-                51.89700414986401,
-                -1.368870281720362,
-                1716995439,
-                "plow",
-                result -> {
-
-                    // Here you girls can do whatever frontend-stuff you want with fieldIndex, for example:
-                    if (result.fieldIndex != null) {
-                        System.out.println(result.fieldIndex + ", " + result.responseCode);
-                    } else if (result.responseCode == null) {
-                        System.out.println("Cant establish network connection to server :(");
-                    } else {
-                        System.out.println("There are problems with the server." +
-                                "Http-Response Code " + result.responseCode);
-                    }
-                });
-        apiCall.execute();
-
     }
 
     /**

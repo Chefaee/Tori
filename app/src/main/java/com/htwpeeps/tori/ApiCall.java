@@ -16,6 +16,9 @@ import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ *
+ */
 public class ApiCall {
 
     private static final String apiUrl = "http://192.168.0.104:3000/api/checkPos";
