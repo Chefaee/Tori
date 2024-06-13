@@ -21,6 +21,7 @@ app.post("/api/checkPos", async (req, res) => {
 
     console.log(lat + ", " + lon + ", " + timestamp + ", " + activity);
 
+    // A little logic so that the response is not always the same number
     if (switchCounter < 10){
         switchCounter ++;
     } else {

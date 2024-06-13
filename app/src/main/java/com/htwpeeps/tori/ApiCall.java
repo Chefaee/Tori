@@ -17,21 +17,31 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- *
+ * The Class manages the call to the api.
  */
 public class ApiCall {
 
     private static final String apiUrl = "http://192.168.0.104:3000/api/checkPos";
+    private static final int timeOut = 5000;
 
-    private final double latitude;
-    private final double longitude;
+    // The content for the server
+    private final double latitude, longitude;
     private final long timestamp;
     private final String activity;
 
+    // Stuff for background handler
     private final ApiCallback callBack;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
 
+    /**
+     * The entrypoint for the application.
+     * @param latitude the latitude position
+     * @param longitude the longitude position
+     * @param timestamp the timestamp preferably in Unix Timestamp
+     * @param activity the activity the farmer currently executes
+     * @param callback the function, which is executed, when we have a result
+     */
     public ApiCall(double latitude, double longitude, long timestamp, String activity, ApiCallback callback) {
         this.latitude = latitude;
         this.longitude = longitude;
@@ -41,7 +51,6 @@ public class ApiCall {
         this.callBack = callback;
     }
 
-
     public void execute() {
         executorService.execute(() -> {
             ResponseObject result = doInBackground();
@@ -49,6 +58,10 @@ public class ApiCall {
         });
     }
 
+    /**
+     * Manages the api call.
+     * @return response from the server.
+     */
     protected ResponseObject doInBackground() {
         if (!isApiReachable()) {
             // API is not reachable
@@ -140,8 +153,8 @@ public class ApiCall {
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("HEAD"); // only requesting header for testing
 
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
+            connection.setConnectTimeout(timeOut);
+            connection.setReadTimeout(timeOut);
 
             // Try to get the response Code. This will break, if there is no connection.
             int responseCode = connection.getResponseCode();
