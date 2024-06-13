@@ -2,6 +2,10 @@ package com.htwpeeps.tori;
 
 // standard android import
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -15,6 +19,7 @@ import android.location.Location;
 import android.os.Bundle;
 
 // ui imports
+import android.preference.PreferenceManager;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -22,9 +27,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
-import androidx.preference.PreferenceManager;
 
 // location api from google
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -35,7 +41,7 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
-//open street map imports
+// open street map imports
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -46,7 +52,13 @@ import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
+// imports for notifications
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -89,6 +101,9 @@ public class MapActivity extends AppCompatActivity {
     boolean changedIsInField = false;
     boolean movedWhilePaused = false;
 
+    private int fieldIndex = 0;
+    private TextView status;
+
     private String activity = "";
 
 
@@ -98,7 +113,7 @@ public class MapActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        TextView status = (TextView) findViewById(R.id.status_textView);
+        status = (TextView) findViewById(R.id.status_textView);
         status.setText("");
 
         Button endButton = (Button) findViewById(R.id.end_button);
@@ -156,7 +171,6 @@ public class MapActivity extends AppCompatActivity {
             }
 
         });
-
 
         initializeMap();
 
@@ -371,32 +385,107 @@ public class MapActivity extends AppCompatActivity {
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallBack, null);
         //updateGPS();
     }
+
     /**
      * Stops all tracking requests.
      */
     private void stopTracking() {
-
         fusedLocationProviderClient.removeLocationUpdates(locationCallBack);
     }
-
 
     /**
      * Taking the saved lastPoint, the current time and the set activity, this function calls to the server and relays these information.
      * It waits for an answer to work with.
      */
     private void sendApiCall() {
-        ApiCall apiCall = new ApiCall(lastKnownPoint.getLatitude(), lastKnownPoint.getLongitude(), Instant.now().getEpochSecond(), activity, result -> {
+        @SuppressLint("SetTextI18n") ApiCall apiCall = new ApiCall(lastKnownPoint.getLatitude(), lastKnownPoint.getLongitude(), Instant.now().getEpochSecond(), activity, result -> {
             // Here you girls can do whatever frontend-stuff you want with fieldIndex, for example:
             if (result.fieldIndex != null) {
                 System.out.println(result.fieldIndex + ", " + result.responseCode);
+
+                // First initialize of the global variable
+                if (fieldIndex == 0) {
+                    fieldIndex = result.fieldIndex;
+                }
+
+                if (result.fieldIndex == -1) {
+                    if (fieldIndex != result.fieldIndex) {
+                        showNotification(fieldIndex, null);
+                        fieldIndex = result.fieldIndex;
+                    }
+                    status.setText("Not on a field");
+                } else if (fieldIndex != result.fieldIndex) {
+                    System.out.println("Field Index changed");
+
+                    fieldIndex = result.fieldIndex;
+
+                    // Formatting Instant.now() to a readable value
+                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm, dd.MM.yyyy");
+                    String formattedDateTime = localDateTime.format(formatter);
+
+                    // Send a notification (notifications need a channel first)
+                    createNotificationChannel();
+                    showNotification(fieldIndex, formattedDateTime);
+
+                    status.setText("Since: " + formattedDateTime + " on field: " + result.fieldIndex);
+                }
+
             } else if (result.responseCode == null) {
                 System.out.println("Cant establish network connection to server :(");
+                status.setText("Waiting for connection...");
             } else {
                 System.out.println("There are problems with the server." +
                         "Http-Response Code " + result.responseCode);
+
+                status.setText("There are problems with the server.");
             }
         });
         apiCall.execute();
     }
 
+    private void createNotificationChannel() {
+        CharSequence name = "Field Change Notification Channel";
+        String description = "Channel for notifications on a field change";
+        int importance = NotificationManager.IMPORTANCE_DEFAULT;
+        NotificationChannel channel = new NotificationChannel("CHANNEL_ID", name, importance);
+        channel.setDescription(description);
+
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        notificationManager.createNotificationChannel(channel);
+    }
+
+    private void showNotification(int fieldIndex, @Nullable String formattedDateTime) {
+        Intent intent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        // Creating the notification (title, body, attributes)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_ID")
+                .setSmallIcon(R.drawable.ic_launcher_foreground) // TODO Icon
+                .setContentTitle("Changed or left field!")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
+
+        // somehow, only checking on fieldIndex resulted in errors
+        if (fieldIndex == -1 || formattedDateTime == null) {
+            builder.setContentText("You left the field.");
+        } else {
+            builder.setContentText("You changed your working field to: " + fieldIndex + "\nOn: " + formattedDateTime);
+        }
+
+        // Show the notification, checks for notification permissions (auto-generated by android studio)
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        notificationManager.notify(1, builder.build());
+    }
 }
