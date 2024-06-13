@@ -137,6 +137,9 @@ public class ApiCall {
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("HEAD"); // only requesting header for testing
 
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+
             // Try to get the response Code. This will break, if there is no connection.
             int responseCode = connection.getResponseCode();
             return (responseCode >= 200 && responseCode < 400);
