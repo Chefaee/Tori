@@ -3,6 +3,10 @@ const bodyParser = require("body-parser");
 const app = express();
 const port = 3000;
 
+// field Index Switcher
+isInField = true;
+switchCounter = 0;
+
 app.use(bodyParser.json());
 
 app.get("/", (req, res) => {
@@ -17,10 +21,19 @@ app.post("/api/checkPos", async (req, res) => {
 
     console.log(lat + ", " + lon + ", " + timestamp + ", " + activity);
 
+    if (switchCounter < 10){
+        switchCounter ++;
+    } else {
+        switchCounter = 0;
+        isInField = !isInField;
+    }
+
+    fieldIndex = isInField ? 73 : -1;
+
     try {
         //const result = await db(receivedString);
         res.json({
-            fieldIndex: 73
+            fieldIndex: fieldIndex
         });
     } catch (error) {
         // lol
