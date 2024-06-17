@@ -3,10 +3,12 @@ package com.htwpeeps.tori;
 // standard android import
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -19,6 +21,7 @@ import android.location.Location;
 import android.os.Bundle;
 
 // ui imports
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.widget.Button;
 import android.widget.TextView;
@@ -100,6 +103,12 @@ public class MapActivity extends AppCompatActivity {
     boolean trackingIsInField = false;
     boolean changedIsInField = false;
     boolean movedWhilePaused = false;
+
+    private Handler handler;
+    private Runnable runnable;
+    private static final long TIMER_DURATION = 20 * 1000; // 20s   /*5 * 60 * 1000;*/ // 5 Minuten in Millisekunden
+    private boolean timerRunning = false;
+    int unchangingLoc = 90000;
 
     private int fieldIndex = 0;
     private TextView status;
@@ -188,6 +197,7 @@ public class MapActivity extends AppCompatActivity {
                     return;
                 }
 
+                checkLocationChange(locationResult.getLastLocation());
                 UpdatePointValues(locationResult.getLastLocation());
                 updateMap();
                 drawPathLine();
@@ -306,6 +316,7 @@ public class MapActivity extends AppCompatActivity {
 
         fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
             System.out.println(Instant.now().getEpochSecond());
+            checkLocationChange(location);
             UpdatePointValues(location);
             updateMap();
             drawPathLine();
@@ -330,8 +341,9 @@ public class MapActivity extends AppCompatActivity {
             requestPermissions(permissions, PERMISSION_REQUEST_CODE);
         }
 
-
+        // maybe add my shit here to check for last pos stuff
         fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
+            checkLocationChange(location);
             initializeLastPointList(location);
             updateMap();
             sendApiCall();
@@ -408,6 +420,9 @@ public class MapActivity extends AppCompatActivity {
                     fieldIndex = result.fieldIndex;
                 }
 
+                // Test
+                showAlertDialog(true);
+
                 if (result.fieldIndex == -1) {
                     if (fieldIndex != result.fieldIndex) {
                         showNotification(fieldIndex, null);
@@ -444,6 +459,10 @@ public class MapActivity extends AppCompatActivity {
         apiCall.execute();
     }
 
+    /**
+     * Function that will create a Notification Channel and the Manager to send notifications.
+     * Notifications cannot be send without a channel.
+     */
     private void createNotificationChannel() {
         CharSequence name = "Field Change Notification Channel";
         String description = "Channel for notifications on a field change";
@@ -455,6 +474,15 @@ public class MapActivity extends AppCompatActivity {
         notificationManager.createNotificationChannel(channel);
     }
 
+    /**
+     * Function that will send a Notification with different content (depending
+     * on potentially changed field indexes).
+     * The Notification will let the user know, when he changed a field or left the tracked fields.
+     * @param fieldIndex number of the field index that the user is currently on.
+     *                   "-1" means that the user is not on a tracked field anymore
+     * @param formattedDateTime the String of the current time, originally an Instant.
+     *                          If null, it means that the user left the tracked fields.
+     */
     private void showNotification(int fieldIndex, @Nullable String formattedDateTime) {
         Intent intent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -467,6 +495,7 @@ public class MapActivity extends AppCompatActivity {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
+        // different notification content depending on given field index / time String
         // somehow, only checking on fieldIndex resulted in errors
         if (fieldIndex == -1 || formattedDateTime == null) {
             builder.setContentText("You left the field.");
@@ -487,5 +516,123 @@ public class MapActivity extends AppCompatActivity {
             return;
         }
         notificationManager.notify(1, builder.build());
+    }
+
+    /**
+     * Function that will check, whether the new location is identical
+     * to the old location (no movement).
+     * If no change is applied, a timer is started.
+     * On movement, the timer gets interrupted.
+     * If not interrupted for several minutes, an alert dialogue is displayed.
+     * @param location
+     */
+    private void checkLocationChange(Location location) {
+        GeoPoint newLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
+        if (lastKnownPoint == newLocation) {
+            // location didn't change --> check timer
+            System.out.println("Location did not change");
+            // Start the timer if it's not running already.
+            if (!timerRunning) {
+                startTimer();
+            }
+        } else {
+            System.out.println("Location changed");
+            stopTimer();
+        }
+    }
+
+    /**
+     * Function to start the timer.
+     * After 5 minutes without interruption, the
+     * OnTimerFinish()-Method will be called.
+     */
+    private void startTimer() {
+        timerRunning = true;
+        runnable = new Runnable() {
+            @Override
+            public void run() {
+                // Timer finished, 5 minutes passed
+                onTimerFinish();
+            }
+        };
+        handler.postDelayed(runnable, TIMER_DURATION);
+    }
+
+    /**
+     * Function to stop the timer if it's already running.
+     */
+    private void stopTimer() {
+        if (timerRunning) {
+            handler.removeCallbacks(runnable);
+            timerRunning = false;
+        }
+    }
+
+    /**
+     * Function that gets called upon timer finish.
+     * It will proceed to show an alert dialog.
+     */
+    private void onTimerFinish() {
+        System.out.println("Timer abgelaufen. Position hat sich nicht verändert");
+        // reset timer
+        timerRunning = false;
+        showAlertDialog(false);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopTimer(); // Stop the timer when the activity is destroyed
+    }
+
+    // https://developer.android.com/develop/ui/views/components/dialogs#java
+    /**
+     * Function to activate an alert dialog.
+     * Depending on the given boolean, the alert dialog will either depict
+     * that a movement was detected while the tracking was paused OR that
+     * for several minutes no position change occurred.
+     * @param movedWhilePaused
+     */
+    private void showAlertDialog(boolean movedWhilePaused) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        if (movedWhilePaused) {
+            builder.setTitle("Movement while paused");
+            builder.setMessage("Movement detected. The locational" +
+                    " data transfer is being continued.");
+            // Ok Button
+            builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                    System.out.println("Ok - ok?");
+                    // do nothing for now
+                }
+            });
+
+            // re-start tracking
+        } else {
+            builder.setTitle("No data");
+            builder.setMessage("No transferred locational data for at least 5 minutes!");
+
+            // Continue Button
+            builder.setPositiveButton("Positive", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                    // User taps continue
+                    System.out.println("Positive! - Fortsetzen");
+
+                }
+            });
+
+            // Pause Button
+            builder.setNegativeButton("Negative", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                    // User pressed pause
+                    System.out.println("Negative! - Pausieren");
+                    onPause();
+                }
+            });
+        }
+
+        // Create and show the AlertDialog
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 }
