@@ -35,7 +35,7 @@ public class ApiCall {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     /**
-     * The entrypoint for the application.
+     * The constructor for the ApiCall.
      * @param latitude the latitude position
      * @param longitude the longitude position
      * @param timestamp the timestamp preferably in Unix Timestamp
@@ -59,8 +59,11 @@ public class ApiCall {
     }
 
     /**
-     * Manages the api call.
-     * @return response from the server.
+     * Checks if Api is reachable and connection is valid. Then it creates a JSON Object with the
+     * latitude, longitude, timestamp and activity. After that it sends this data to the server and
+     * handles the response.
+     * @return Response from the server in form of a ResponseObject. Contains the field index (-1
+     * for no field) and the Http-Response Code.
      */
     protected ResponseObject doInBackground() {
         if (!isApiReachable()) {
