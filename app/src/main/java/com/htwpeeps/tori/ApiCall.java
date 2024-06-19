@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
  */
 public class ApiCall {
 
-    private static final String apiUrl = "http://192.168.0.104:3000/api/checkPos";
+    private static final String apiUrl = "https://tori.letsstein.de/api/checkPos";
     private static final int timeOut = 5000;
 
     // The content for the server

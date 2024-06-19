@@ -4,7 +4,7 @@
     For Api Call we need:
     1. Internet Permission (android.permission.INTERNET)
     2. Mobile Data Permission (android.permission.ACCESS_NETWORK_STATE)
-    3. Allow App to make http Calls (android:usesCleartextTraffic="true")
+    3. Only for Debugging -> Allow App to make http Calls (android:usesCleartextTraffic="true")
 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -27,7 +27,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Tori"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
