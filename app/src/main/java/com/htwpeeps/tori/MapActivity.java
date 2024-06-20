@@ -561,6 +561,8 @@ public class MapActivity extends AppCompatActivity {
             // Ok Button
             builder.setPositiveButton(getString(R.string.ok_button), (dialog, id) -> {
                 onPauseButtonClicked();
+                // reset field index for status display
+                fieldIndex = 0;
             });
         } else {
             builder.setTitle(getString(R.string.no_data_title));
