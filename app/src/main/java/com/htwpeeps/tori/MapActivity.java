@@ -64,6 +64,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
 
 /**
  * This Class holds all necessary functionalities for the second screen with the map.
@@ -88,7 +89,7 @@ public class MapActivity extends AppCompatActivity {
     LocationRequest locationRequest;
     // these are later multiplied with 1000 for millisec
     public static final int LOCATION_UPDATE_INTERVAL = 5;
-    public static final int LOCATION_UPDATE_PAUSED_INTERVAL = 10;
+    public static final int LOCATION_UPDATE_PAUSED_INTERVAL = 10;  // 5 * 60; // 5 min
 
     // location
     LocationCallback locationCallBack;
@@ -99,22 +100,22 @@ public class MapActivity extends AppCompatActivity {
 
     boolean trackingIsPaused = false;
 
-    //todo remove if not necessary
-    boolean trackingIsInField = false;
-    boolean changedIsInField = false;
-    boolean movedWhilePaused = false;
+    ///////////////////////
+    // Timer-Variables
 
     private Handler handler;
     private Runnable runnable;
-    private static final long TIMER_DURATION = 20 * 1000; // 20s   /*5 * 60 * 1000;*/ // 5 Minuten in Millisekunden
+    private static final long TIMER_DURATION = 5 * 60 * 1000; // 5 Min
     private boolean timerRunning = false;
-    int unchangingLoc = 90000;
 
+    ///////////////////////
+
+    private AlertDialog dialog;
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+    private Button pauseButton;
     private int fieldIndex = 0;
     private TextView status;
-
     private String activity = "";
-
 
     //todo check and fix possible problems when exiting and entering the map again
     @Override
@@ -141,44 +142,9 @@ public class MapActivity extends AppCompatActivity {
                 ).setGranularity(Granularity.GRANULARITY_FINE)
                         .setMinUpdateIntervalMillis(1000 * LOCATION_UPDATE_INTERVAL).build();
 
-        Button pauseButton = (Button) findViewById(R.id.pause_button);
+        pauseButton = (Button) findViewById(R.id.pause_button);
         pauseButton.setOnClickListener(v -> {
-            if (!trackingIsPaused) {
-                trackingIsPaused = true;
-
-                //creates a new locationRequest with a longer interval between location updates, as paused location should not change
-                locationRequest =
-                        new LocationRequest.Builder(
-                                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                                1000 * LOCATION_UPDATE_PAUSED_INTERVAL
-                        ).setGranularity(Granularity.GRANULARITY_FINE)
-                                .setMinUpdateIntervalMillis(1000 * LOCATION_UPDATE_PAUSED_INTERVAL).build();
-
-                //called to update the request
-                tracking();
-
-                //ui updates
-                status.setText(getString(R.string.pause_status));
-                pauseButton.setText(getString(R.string.cont_button));
-            } else {
-                trackingIsPaused = false;
-                // recreates the original locationRequest with the standard interval for tracking
-                locationRequest =
-                        new LocationRequest.Builder(
-                                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                                1000 * LOCATION_UPDATE_INTERVAL
-                        ).setGranularity(Granularity.GRANULARITY_FINE)
-                                .setMinUpdateIntervalMillis(1000 * LOCATION_UPDATE_INTERVAL).build();
-
-                //called to update the request
-                tracking();
-
-                //ui updates
-                status.setText("");
-                pauseButton.setText(getString(R.string.pause_button));
-
-            }
-
+            onPauseButtonClicked();
         });
 
         initializeMap();
@@ -191,13 +157,13 @@ public class MapActivity extends AppCompatActivity {
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 super.onLocationResult(locationResult);
 
-                System.out.println(Instant.now().getEpochSecond());
-
                 if (locationResult.getLastLocation() == null) {
+                    startTimer();
                     return;
+                } else {
+                    stopTimer();
                 }
 
-                checkLocationChange(locationResult.getLastLocation());
                 UpdatePointValues(locationResult.getLastLocation());
                 updateMap();
                 drawPathLine();
@@ -207,6 +173,45 @@ public class MapActivity extends AppCompatActivity {
 
         updateFirstGPS();
         tracking();
+
+        handler = new Handler();
+    }
+
+    private void onPauseButtonClicked() {
+        if (!trackingIsPaused) {
+            trackingIsPaused = true;
+
+            //creates a new locationRequest with a longer interval between location updates, as paused location should not change
+            locationRequest =
+                    new LocationRequest.Builder(
+                            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                            1000 * LOCATION_UPDATE_PAUSED_INTERVAL
+                    ).setGranularity(Granularity.GRANULARITY_FINE)
+                            .setMinUpdateIntervalMillis(5000 * LOCATION_UPDATE_PAUSED_INTERVAL).build();
+
+            //called to update the request
+            tracking();
+
+            //ui updates
+            status.setText(getString(R.string.pause_status));
+            pauseButton.setText(getString(R.string.cont_button));
+        } else {
+            trackingIsPaused = false;
+            // recreates the original locationRequest with the standard interval for tracking
+            locationRequest =
+                    new LocationRequest.Builder(
+                            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                            1000 * LOCATION_UPDATE_INTERVAL
+                    ).setGranularity(Granularity.GRANULARITY_FINE)
+                            .setMinUpdateIntervalMillis(1000 * LOCATION_UPDATE_INTERVAL).build();
+
+            //called to update the request
+            tracking();
+
+            //ui updates
+            status.setText("");
+            pauseButton.setText(getString(R.string.pause_button));
+        }
     }
 
     @Override
@@ -214,6 +219,9 @@ public class MapActivity extends AppCompatActivity {
         super.onStop();
         // for now the tracking is stopped when the activity ends
         stopTracking();
+
+        last10Points = null;
+        lastKnownPoint = null;
     }
 
     /**
@@ -276,7 +284,6 @@ public class MapActivity extends AppCompatActivity {
 
         // adds the line layer
         map.getOverlays().add(polylinePath);
-
     }
 
     /**
@@ -301,36 +308,11 @@ public class MapActivity extends AppCompatActivity {
         last10Points.add(9, lastKnownPoint);
     }
 
-    private void updateGPS() {
-
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MapActivity.this);
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            String[] permissions = {Manifest.permission.INTERNET, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
-            requestPermissions(permissions, PERMISSION_REQUEST_CODE);
-        }
-
-
-        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
-            System.out.println(Instant.now().getEpochSecond());
-            checkLocationChange(location);
-            UpdatePointValues(location);
-            updateMap();
-            drawPathLine();
-            //sendApiCall();
-        });
-
-    }
-
     /**
      * The first location update is different to all following as the function to initialize the lastPointList must be called.
      * Afterwards the map is updated and the api called
      */
     private void updateFirstGPS() {
-
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MapActivity.this);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED ||
@@ -341,14 +323,11 @@ public class MapActivity extends AppCompatActivity {
             requestPermissions(permissions, PERMISSION_REQUEST_CODE);
         }
 
-        // maybe add my shit here to check for last pos stuff
         fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
-            checkLocationChange(location);
             initializeLastPointList(location);
             updateMap();
             sendApiCall();
         });
-
     }
 
     /**
@@ -358,7 +337,6 @@ public class MapActivity extends AppCompatActivity {
         mapController.setCenter(lastKnownPoint);
         //this moves the map to actually center the start point
         mapController.animateTo(lastKnownPoint);
-        System.out.println("Map:" + Instant.now().getEpochSecond());
     }
 
     /**
@@ -385,7 +363,6 @@ public class MapActivity extends AppCompatActivity {
      * It needs to be called everytime the location request changes (e.g. in interval or priority)
      */
     private void tracking() {
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
@@ -395,7 +372,6 @@ public class MapActivity extends AppCompatActivity {
         }
 
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallBack, null);
-        //updateGPS();
     }
 
     /**
@@ -411,49 +387,67 @@ public class MapActivity extends AppCompatActivity {
      */
     private void sendApiCall() {
         @SuppressLint("SetTextI18n") ApiCall apiCall = new ApiCall(lastKnownPoint.getLatitude(), lastKnownPoint.getLongitude(), Instant.now().getEpochSecond(), activity, result -> {
-            // Here you girls can do whatever frontend-stuff you want with fieldIndex, for example:
+
             if (result.fieldIndex != null) {
                 System.out.println(result.fieldIndex + ", " + result.responseCode);
 
                 // First initialize of the global variable
                 if (fieldIndex == 0) {
                     fieldIndex = result.fieldIndex;
+
+                    if (fieldIndex != -1) {
+                        // Formatting Instant.now() to a readable value
+                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
+                        String formattedDateTime = localDateTime.format(formatter);
+
+                        status.setText(getString(R.string.since) + formattedDateTime
+                                + getString(R.string.on_field) + result.fieldIndex
+                                + "\n" + getString(R.string.current_activity) + activity
+                        );
+                    }
                 }
 
-                // Test
-                showAlertDialog(true);
+                if (!trackingIsPaused) {
+                    if (result.fieldIndex == -1) {
+                        if (fieldIndex != result.fieldIndex) {
+                            showNotification(fieldIndex, null);
+                            fieldIndex = result.fieldIndex;
+                        }
+                        status.setText(getString(R.string.no_field));
 
-                if (result.fieldIndex == -1) {
-                    if (fieldIndex != result.fieldIndex) {
-                        showNotification(fieldIndex, null);
+                    } else if (fieldIndex != result.fieldIndex) {
+
                         fieldIndex = result.fieldIndex;
+
+                        // Formatting Instant.now() to a readable value
+                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
+                        String formattedDateTime = localDateTime.format(formatter);
+
+                        // Send a notification (notifications need a channel first)
+                        createNotificationChannel();
+                        showNotification(fieldIndex, formattedDateTime);
+
+                        status.setText(getString(R.string.since) + formattedDateTime
+                                + getString(R.string.on_field) + result.fieldIndex
+                                + "\n" + getString(R.string.current_activity) + activity
+                        );
                     }
-                    status.setText("Not on a field");
-                } else if (fieldIndex != result.fieldIndex) {
-                    System.out.println("Field Index changed");
-
-                    fieldIndex = result.fieldIndex;
-
-                    // Formatting Instant.now() to a readable value
-                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm, dd.MM.yyyy");
-                    String formattedDateTime = localDateTime.format(formatter);
-
-                    // Send a notification (notifications need a channel first)
-                    createNotificationChannel();
-                    showNotification(fieldIndex, formattedDateTime);
-
-                    status.setText("Since: " + formattedDateTime + " on field: " + result.fieldIndex);
+                } else {
+                    if (lastKnownPoint != last10Points.get(1)) {
+                        // location was changed while pause was active
+                        showMovementAlertDialog(trackingIsPaused);
+                    }
                 }
 
             } else if (result.responseCode == null) {
                 System.out.println("Cant establish network connection to server :(");
-                status.setText("Waiting for connection...");
+                status.setText(R.string.await_connection);
+                fieldIndex = 0;
             } else {
                 System.out.println("There are problems with the server." +
                         "Http-Response Code " + result.responseCode);
 
-                status.setText("There are problems with the server.");
+                status.setText(getString(R.string.server_problem));
             }
         });
         apiCall.execute();
@@ -464,10 +458,10 @@ public class MapActivity extends AppCompatActivity {
      * Notifications cannot be send without a channel.
      */
     private void createNotificationChannel() {
-        CharSequence name = "Field Change Notification Channel";
-        String description = "Channel for notifications on a field change";
+        CharSequence name = getString(R.string.channel_name_note);
+        String description = getString(R.string.channel_description_note);
         int importance = NotificationManager.IMPORTANCE_DEFAULT;
-        NotificationChannel channel = new NotificationChannel("CHANNEL_ID", name, importance);
+        NotificationChannel channel = new NotificationChannel(getString(R.string.channel_id), name, importance);
         channel.setDescription(description);
 
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
@@ -489,8 +483,8 @@ public class MapActivity extends AppCompatActivity {
 
         // Creating the notification (title, body, attributes)
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_ID")
-                .setSmallIcon(R.drawable.ic_launcher_foreground) // TODO Icon
-                .setContentTitle("Changed or left field!")
+                .setSmallIcon(R.mipmap.ic_launcher_png)
+                .setContentTitle(getString(R.string.note_title))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
@@ -498,9 +492,10 @@ public class MapActivity extends AppCompatActivity {
         // different notification content depending on given field index / time String
         // somehow, only checking on fieldIndex resulted in errors
         if (fieldIndex == -1 || formattedDateTime == null) {
-            builder.setContentText("You left the field.");
+            builder.setContentText(getString(R.string.note_text_left));
         } else {
-            builder.setContentText("You changed your working field to: " + fieldIndex + "\nOn: " + formattedDateTime);
+            builder.setContentText(getString(R.string.field_change_note_text) + fieldIndex
+                    + "\n" + getString(R.string.on_time) + formattedDateTime);
         }
 
         // Show the notification, checks for notification permissions (auto-generated by android studio)
@@ -519,41 +514,16 @@ public class MapActivity extends AppCompatActivity {
     }
 
     /**
-     * Function that will check, whether the new location is identical
-     * to the old location (no movement).
-     * If no change is applied, a timer is started.
-     * On movement, the timer gets interrupted.
-     * If not interrupted for several minutes, an alert dialogue is displayed.
-     * @param location
-     */
-    private void checkLocationChange(Location location) {
-        GeoPoint newLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
-        if (lastKnownPoint == newLocation) {
-            // location didn't change --> check timer
-            System.out.println("Location did not change");
-            // Start the timer if it's not running already.
-            if (!timerRunning) {
-                startTimer();
-            }
-        } else {
-            System.out.println("Location changed");
-            stopTimer();
-        }
-    }
-
-    /**
      * Function to start the timer.
      * After 5 minutes without interruption, the
      * OnTimerFinish()-Method will be called.
      */
     private void startTimer() {
         timerRunning = true;
-        runnable = new Runnable() {
-            @Override
-            public void run() {
-                // Timer finished, 5 minutes passed
-                onTimerFinish();
-            }
+
+        runnable = () -> {
+            // Timer finished, 5 minutes passed
+            showMovementAlertDialog(trackingIsPaused);
         };
         handler.postDelayed(runnable, TIMER_DURATION);
     }
@@ -568,71 +538,48 @@ public class MapActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Function that gets called upon timer finish.
-     * It will proceed to show an alert dialog.
-     */
-    private void onTimerFinish() {
-        System.out.println("Timer abgelaufen. Position hat sich nicht verändert");
-        // reset timer
-        timerRunning = false;
-        showAlertDialog(false);
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        stopTimer(); // Stop the timer when the activity is destroyed
-    }
-
     // https://developer.android.com/develop/ui/views/components/dialogs#java
     /**
      * Function to activate an alert dialog.
      * Depending on the given boolean, the alert dialog will either depict
      * that a movement was detected while the tracking was paused OR that
      * for several minutes no position change occurred.
-     * @param movedWhilePaused
+     * @param trackingIsPaused whether pause was active
+     *                         true means that the user moved while paused
      */
-    private void showAlertDialog(boolean movedWhilePaused) {
+    private void showMovementAlertDialog(boolean trackingIsPaused) {
+        if (dialog != null && dialog.isShowing()) {
+            // dialog already visible
+            return;
+        }
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        if (movedWhilePaused) {
-            builder.setTitle("Movement while paused");
-            builder.setMessage("Movement detected. The locational" +
-                    " data transfer is being continued.");
+        if (trackingIsPaused) {
+            builder.setTitle(getString(R.string.movement_while_paused_title));
+            builder.setMessage(getString(R.string.movement_while_paused_text));
+
             // Ok Button
-            builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int id) {
-                    System.out.println("Ok - ok?");
-                    // do nothing for now
-                }
+            builder.setPositiveButton(getString(R.string.ok_button), (dialog, id) -> {
+                onPauseButtonClicked();
             });
-
-            // re-start tracking
         } else {
-            builder.setTitle("No data");
-            builder.setMessage("No transferred locational data for at least 5 minutes!");
+            builder.setTitle(getString(R.string.no_data_title));
+            builder.setMessage(getString(R.string.no_data_text));
 
-            // Continue Button
-            builder.setPositiveButton("Positive", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int id) {
-                    // User taps continue
-                    System.out.println("Positive! - Fortsetzen");
-
-                }
+            // Continue/Still working Button
+            builder.setPositiveButton(getString(R.string.still_working), (dialog, id) -> {
+                // do nothing and hope the connection is working soon again
             });
 
             // Pause Button
-            builder.setNegativeButton("Negative", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int id) {
-                    // User pressed pause
-                    System.out.println("Negative! - Pausieren");
-                    onPause();
-                }
+            builder.setNegativeButton(getString(R.string.pause_note_button), (dialog, id) -> {
+                onPauseButtonClicked();
+                dialog.cancel();
             });
         }
 
         // Create and show the AlertDialog
-        AlertDialog dialog = builder.create();
+        dialog = builder.create();
         dialog.show();
     }
 }

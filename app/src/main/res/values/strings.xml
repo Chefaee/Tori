@@ -14,4 +14,24 @@
     </string-array>
     <string name="pause_status">Paused</string>
     <string name="tracking_information">This app continuously tracks your position. For further processing this data is send to a server.</string>
+    <string name="since">Since:</string>
+    <string name="on_field">on field:</string>
+    <string name="no_field">Not on a field.</string>
+    <string name="await_connection">Waiting for connection...</string>
+    <string name="server_problem">There are problems with the server.</string>
+    <string name="channel_name_note" translatable="false">Field Change Notification Channel</string>
+    <string name="channel_description_note" translatable="false">Channel for notifications on a field change</string>
+    <string name="channel_id" translatable="false">CHANNEL_ID</string>
+    <string name="note_title">Changed or left field!</string>
+    <string name="note_text_left">You left the field.</string>
+    <string name="field_change_note_text">You changed your working field to:</string>
+    <string name="on_time">On:</string>
+    <string name="movement_while_paused_title">Movement while paused</string>
+    <string name="movement_while_paused_text">Movement detected. The locational data transfer is being continued.</string>
+    <string name="ok_button">OK</string>
+    <string name="no_data_title">No data</string>
+    <string name="no_data_text">No transferred locational data for at least 5 minutes!</string>
+    <string name="still_working">Still working</string>
+    <string name="pause_note_button">Pause</string>
+    <string name="current_activity">Current Activity: </string>
 </resources>
