@@ -34,4 +34,5 @@
     <string name="still_working">Still working</string>
     <string name="pause_note_button">Pause</string>
     <string name="current_activity">Current Activity: </string>
+    <string name="noLocationEnabled">Please enable location permissions and access!</string>
 </resources>

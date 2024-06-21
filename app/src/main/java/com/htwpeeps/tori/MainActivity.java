@@ -1,14 +1,21 @@
 package com.htwpeeps.tori;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 /**
  * Activity class that holds the functionalities for the first screen.
@@ -34,10 +41,37 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         Button startButton = (Button) findViewById(R.id.start_button);
         startButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, MapActivity.class);
-            intent.putExtra("activity", activeDropDownString);
-            startActivity(intent);
+            // check for active location transfer
+            if (isLocationEnabled(this)) {
+                Intent intent = new Intent(this, MapActivity.class);
+                intent.putExtra("activity", activeDropDownString);
+                startActivity(intent);
+            } else {
+                // show a toast that location transfer is missing
+                Toast.makeText(this, getString(R.string.noLocationEnabled),
+                        Toast.LENGTH_LONG).show();
+            }
         });
+    }
+
+    private boolean isLocationEnabled(Context context) {
+        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        boolean isGpsEnabled = false;
+        boolean isNetworkEnabled = false;
+
+        try {
+            isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception ex) {
+            // GPS provider status check failed
+        }
+
+        try {
+            isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception ex) {
+            // Network provider status check failed
+        }
+
+        return isGpsEnabled || isNetworkEnabled;
     }
 
     /**

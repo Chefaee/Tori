@@ -176,6 +176,7 @@ public class MapActivity extends AppCompatActivity {
                 updateMap();
                 drawPathLine();
                 sendApiCall();
+
             }
         };
 
@@ -319,18 +320,18 @@ public class MapActivity extends AppCompatActivity {
      * @param location current location returned by the location request
      */
     private void initializeLastPointList(Location location) {
-        lastKnownPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
+        if (location != null) {
+            lastKnownPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
 
-        last10Points.add(0, lastKnownPoint);
-        last10Points.add(1, lastKnownPoint);
-        last10Points.add(2, lastKnownPoint);
-        last10Points.add(3, lastKnownPoint);
-        last10Points.add(4, lastKnownPoint);
-        last10Points.add(5, lastKnownPoint);
-        last10Points.add(6, lastKnownPoint);
-        last10Points.add(7, lastKnownPoint);
-        last10Points.add(8, lastKnownPoint);
-        last10Points.add(9, lastKnownPoint);
+            for (int i = 0; i < 10; i++) {
+                last10Points.add(i, lastKnownPoint);
+            }
+        } else {
+            lastKnownPoint = null;
+            for (int i = 0; i < 10; i++) {
+                last10Points.add(i, null);
+            }
+        }
     }
 
     /**

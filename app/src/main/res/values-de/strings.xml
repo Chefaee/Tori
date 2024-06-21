@@ -31,4 +31,5 @@
     <string name="still_working">Ich arbeite noch</string>
     <string name="pause_note_button">Pause</string>
     <string name="current_activity">Momentane Aktivität:</string>
+    <string name="noLocationEnabled">Bitte Standortübertragung aktivieren und die Berechtigung erteilen!</string>
 </resources>
