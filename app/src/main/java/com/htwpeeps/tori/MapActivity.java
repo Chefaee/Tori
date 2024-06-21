@@ -8,7 +8,6 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -64,7 +63,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
 
 /**
  * This Class holds all necessary functionalities for the second screen with the map.
@@ -85,19 +83,20 @@ public class MapActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 1;
 
     //API from Google for location
-    FusedLocationProviderClient fusedLocationProviderClient;
-    LocationRequest locationRequest;
+    private FusedLocationProviderClient fusedLocationProviderClient;
+    private LocationRequest locationRequest;
     // these are later multiplied with 1000 for millisec
     public static final int LOCATION_UPDATE_INTERVAL = 5;
     public static final int LOCATION_UPDATE_PAUSED_INTERVAL = 10;  // 5 * 60; // 5 min
 
     // location
-    LocationCallback locationCallBack;
-    // placeholder values used for starting point, for now they are set to frauenkirche in dresden
-    GeoPoint lastKnownPoint = new GeoPoint(51.051873, 13.741522);
+    private LocationCallback locationCallBack;
+    // placeholder values used for starting point, for now they are set to Frauenkirche in Dresden
+    private GeoPoint lastKnownPoint = new GeoPoint(51.051873, 13.741522);
 
-    List<GeoPoint> last10Points = new ArrayList<>();
+    private List<GeoPoint> last10Points = new ArrayList<>();
 
+    // variable for the pause-status of the tracking
     boolean trackingIsPaused = false;
 
     ///////////////////////
@@ -110,14 +109,19 @@ public class MapActivity extends AppCompatActivity {
 
     ///////////////////////
 
-    private AlertDialog dialog;
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+    // global variable for the dialog is needed to check for the case
+    // that it is already displayed
+    private AlertDialog alertDialog;
+
+    // DateTimeFormatter to format Instant to a readable value
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
     private Button pauseButton;
+
+    // initial field index is 0 as there should be no field with the number 0
     private int fieldIndex = 0;
     private TextView status;
     private String activity = "";
 
-    //todo check and fix possible problems when exiting and entering the map again
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -157,10 +161,14 @@ public class MapActivity extends AppCompatActivity {
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 super.onLocationResult(locationResult);
 
+                // start a timer if there was no location data
                 if (locationResult.getLastLocation() == null) {
-                    startTimer();
+                    startTimer(); // start a 5 minute timer
+                    // no data for 5 minutes will result in the display
+                    // of an alert
                     return;
                 } else {
+                    // upon new location data, stop the timer
                     stopTimer();
                 }
 
@@ -177,6 +185,17 @@ public class MapActivity extends AppCompatActivity {
         handler = new Handler();
     }
 
+    /**
+     * Function that gets called upon the "pause"-button click.
+     * It will adjust the global variable and re-initializes a new
+     * LocationRequest with different parameters, depending on the
+     * state of the paused-variable.
+     *
+     * While paused, a location request every 5 minutes is called to reload
+     * the map and the last known points.
+     * Depending on the paused state, a different status and button text
+     * will be displayed.
+     */
     private void onPauseButtonClicked() {
         if (!trackingIsPaused) {
             trackingIsPaused = true;
@@ -220,15 +239,20 @@ public class MapActivity extends AppCompatActivity {
         // for now the tracking is stopped when the activity ends
         stopTracking();
 
+        // reset the saved locations
         last10Points = null;
         lastKnownPoint = null;
     }
 
     /**
      * Creates an osm-map in the view.
-     * Therefore the view element is accessed and filed with map tiles, any map controls are disabled.
-     * Then the map is set to the starting point, which is most of the times the placeholder from the start.
-     * Everything is set to a fixed zoom, all necessary layers (for displaying lines and location) are created, the icon is replaced with a custom icon and the line is defined.
+     * Therefore the view element is accessed and filed with map tiles,
+     * any map controls are disabled.
+     * Then the map is set to the starting point, which is most of
+     * the times the placeholder from the start.
+     * Everything is set to a fixed zoom, all necessary layers
+     * (for displaying lines and location) are created, the icon is
+     * replaced with a custom icon and the line is defined.
      */
     private void initializeMap() {
         Context ctx = getApplicationContext();
@@ -287,7 +311,8 @@ public class MapActivity extends AppCompatActivity {
     }
 
     /**
-     * Upon start of tracking, the list of the last known points is initialized at the current location.
+     * Upon start of tracking, the list of the last known points is
+     * initialized at the current location.
      * It also initializes the value for the lastKnownPoint
      * This should prevent an unwanted line upon the update to the first location
      *
@@ -309,7 +334,8 @@ public class MapActivity extends AppCompatActivity {
     }
 
     /**
-     * The first location update is different to all following as the function to initialize the lastPointList must be called.
+     * The first location update is different to all following as the function to
+     * initialize the lastPointList must be called.
      * Afterwards the map is updated and the api called
      */
     private void updateFirstGPS() {
@@ -331,7 +357,8 @@ public class MapActivity extends AppCompatActivity {
     }
 
     /**
-     * This function centers the map on the current position and if it deems it necessary moves the map tiles accordingly.
+     * This function centers the map on the current position and
+     * if it deems it necessary moves the map tiles accordingly.
      */
     private void updateMap() {
         mapController.setCenter(lastKnownPoint);
@@ -341,14 +368,16 @@ public class MapActivity extends AppCompatActivity {
 
     /**
      * Updates the line on the map.
-     * There are always only 10 points in use, but the length of the line might differ depending on the speed the device is moving.
+     * There are always only 10 points in use, but the length of the line might differ
+     * depending on the speed the device is moving.
      */
     private void drawPathLine() {
         polylinePath.setPoints(last10Points);
     }
 
     /**
-     * The current location is saved and added at the end of the pointsList. The then oldest point is removed.
+     * The current location is saved and added at the end of the pointsList.
+     * The then oldest point is removed.
      *
      * @param location current location returned by location request
      */
@@ -359,7 +388,8 @@ public class MapActivity extends AppCompatActivity {
     }
 
     /**
-     * This function checks for permissions before setting the fusedLocationProviderClient to request updates with the current locationRequest and a callback.
+     * This function checks for permissions before setting the fusedLocationProviderClient
+     * to request updates with the current locationRequest and a callback.
      * It needs to be called everytime the location request changes (e.g. in interval or priority)
      */
     private void tracking() {
@@ -382,11 +412,13 @@ public class MapActivity extends AppCompatActivity {
     }
 
     /**
-     * Taking the saved lastPoint, the current time and the set activity, this function calls to the server and relays these information.
+     * Taking the saved lastPoint, the current time and the set activity,
+     * this function calls to the server and relays these information.
      * It waits for an answer to work with.
      */
     private void sendApiCall() {
-        @SuppressLint("SetTextI18n") ApiCall apiCall = new ApiCall(lastKnownPoint.getLatitude(), lastKnownPoint.getLongitude(), Instant.now().getEpochSecond(), activity, result -> {
+        @SuppressLint("SetTextI18n") // Needed for the status.setText(), could throw errors otherwise
+        ApiCall apiCall = new ApiCall(lastKnownPoint.getLatitude(), lastKnownPoint.getLongitude(), Instant.now().getEpochSecond(), activity, result -> {
 
             if (result.fieldIndex != null) {
                 System.out.println(result.fieldIndex + ", " + result.responseCode);
@@ -407,8 +439,12 @@ public class MapActivity extends AppCompatActivity {
                     }
                 }
 
+                // usually, tracking is not paused
                 if (!trackingIsPaused) {
+                    // "-1": user is not on a tracked field, show a notification
                     if (result.fieldIndex == -1) {
+                        // only show a notification on change of the field index
+                        // (moment that the user first left the fields)
                         if (fieldIndex != result.fieldIndex) {
                             showNotification(fieldIndex, null);
                             fieldIndex = result.fieldIndex;
@@ -416,6 +452,7 @@ public class MapActivity extends AppCompatActivity {
                         status.setText(getString(R.string.no_field));
 
                     } else if (fieldIndex != result.fieldIndex) {
+                        // user changed the field
 
                         fieldIndex = result.fieldIndex;
 
@@ -473,7 +510,7 @@ public class MapActivity extends AppCompatActivity {
      * on potentially changed field indexes).
      * The Notification will let the user know, when he changed a field or left the tracked fields.
      * @param fieldIndex number of the field index that the user is currently on.
-     *                   "-1" means that the user is not on a tracked field anymore
+     *                   "-1" means that the user is not on a tracked field.
      * @param formattedDateTime the String of the current time, originally an Instant.
      *                          If null, it means that the user left the tracked fields.
      */
@@ -489,7 +526,7 @@ public class MapActivity extends AppCompatActivity {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        // different notification content depending on given field index / time String
+        // sets different notification content depending on given field index / time String
         // somehow, only checking on fieldIndex resulted in errors
         if (fieldIndex == -1 || formattedDateTime == null) {
             builder.setContentText(getString(R.string.note_text_left));
@@ -498,16 +535,11 @@ public class MapActivity extends AppCompatActivity {
                     + "\n" + getString(R.string.on_time) + " " + formattedDateTime);
         }
 
-        // Show the notification, checks for notification permissions (auto-generated by android studio)
+        // Shows the notification, checks for notification permissions.
+        // No notification will be displayed if the permission is not given.
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         notificationManager.notify(1, builder.build());
@@ -516,7 +548,7 @@ public class MapActivity extends AppCompatActivity {
     /**
      * Function to start the timer.
      * After 5 minutes without interruption, the
-     * OnTimerFinish()-Method will be called.
+     * OnTimerFinish()-Method will be called to show an alert.
      */
     private void startTimer() {
         timerRunning = true;
@@ -543,12 +575,12 @@ public class MapActivity extends AppCompatActivity {
      * Function to activate an alert dialog.
      * Depending on the given boolean, the alert dialog will either depict
      * that a movement was detected while the tracking was paused OR that
-     * for several minutes no position change occurred.
+     * for several minutes no position data transfer occurred.
      * @param trackingIsPaused whether pause was active
      *                         true means that the user moved while paused
      */
     private void showMovementAlertDialog(boolean trackingIsPaused) {
-        if (dialog != null && dialog.isShowing()) {
+        if (alertDialog != null && alertDialog.isShowing()) {
             // dialog already visible
             return;
         }
@@ -581,7 +613,7 @@ public class MapActivity extends AppCompatActivity {
         }
 
         // Create and show the AlertDialog
-        dialog = builder.create();
-        dialog.show();
+        alertDialog = builder.create();
+        alertDialog.show();
     }
 }
