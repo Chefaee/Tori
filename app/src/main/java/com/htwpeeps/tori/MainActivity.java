@@ -54,6 +54,12 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         });
     }
 
+    /**
+     * Function that checks the access/connection to location and network services.
+     * Both need to be given to make the app work.
+     * @param context the current context, MainActivity.java (this)
+     * @return true if both services (network, location) are accessible, false if one of them is not working
+     */
     private boolean isLocationEnabled(Context context) {
         LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         boolean isGpsEnabled = false;
