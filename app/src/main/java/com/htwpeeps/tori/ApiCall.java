@@ -51,6 +51,10 @@ public class ApiCall {
         this.callBack = callback;
     }
 
+    /**
+     * Entrypoint for Api Call. Make sure the class variables are defined before executing this
+     * function.
+     */
     public void execute() {
         executorService.execute(() -> {
             ResponseObject result = doInBackground();
