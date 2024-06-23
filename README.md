@@ -18,6 +18,7 @@ Tori-App
 - Kurze Beschreibung beim Commit
 
 ## Api-Server
-Install Api Server with `npm install` and start it with `node index`
+Install Api Server with `npm install` (in terminal of folder "\Tori\api_server") 
+and start it with `node index`
 
-Check `localhost:3000` if it works :)
+Check `localhost:3000` in the web if it works :)
