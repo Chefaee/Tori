@@ -18,7 +18,20 @@ Tori-App
 - Kurze Beschreibung beim Commit
 
 ## Api-Server
-Install Api Server with `npm install` (in terminal of folder "\Tori\api_server") 
-and start it with `node index`
+Api-Server mit `npm install` (im Terminal des Ordners "\Tori\api_server") installieren
+und mit `node index` starten.
 
-Check `localhost:3000` in the web if it works :)
+Check `localhost:3000` im Web, ob alles funktioniert. :)
+
+## GitHub-Namen
+- Spottedstorm23 - Cora V. Stokowsky
+- Luzzzo - Lukas Keinert
+- Chefaee - Selina Zesewitz-Thiel
+
+## Informationen
+- SS 2024, Modul: Mobile Netze, Teil der Prüfungsleistung
+- App mit GPS-Tracking und Backend-Verarbeitung/-Kommunikation
+- Sprachen: Deutsch/Englisch
+- Lukas: Backend
+- Cora: Kartentracking
+- Selina: Notifications, Dialoge, sonstige Abfragen/Anpassungen
