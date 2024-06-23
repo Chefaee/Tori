@@ -373,6 +373,8 @@ public class MapActivity extends AppCompatActivity {
      * depending on the speed the device is moving.
      */
     private void drawPathLine() {
+        if (last10Points == null || last10Points.get(0) == null)
+            return;
         polylinePath.setPoints(last10Points);
     }
 
@@ -418,6 +420,10 @@ public class MapActivity extends AppCompatActivity {
      * It waits for an answer to work with.
      */
     private void sendApiCall() {
+        // prevents NullPointerException
+        if (lastKnownPoint == null)
+            return;
+
         @SuppressLint("SetTextI18n") // Needed for the status.setText(), could throw errors otherwise
         ApiCall apiCall = new ApiCall(lastKnownPoint.getLatitude(), lastKnownPoint.getLongitude(), Instant.now().getEpochSecond(), activity, result -> {
 
